@@ -1,0 +1,60 @@
+# Prerequisites
+# Terraform code (.tf files) should exist in your GitHub repository. 
+# The terraform code should include configuration for remote state storage in an S3 bucket, such as an S3 backend configuration in your main.tf file.
+# AWS IAM credentials with appropriate permissions to interact with the S3 bucket and perform Terraform operations must have been setup. 
+# These credentials should be securely stored as GitHub secrets.
+# In the GitHub repository, the AWS_ACCESS_KEY_ID: AWS access key ID. secret should have been created
+# In the GitHub repository, the AWS_SECRET_ACCESS_KEY: Your AWS secret access key secret should have been created
+# A .github/workflows directory has been created in the github repo where this yaml file will be placed
+# your-s3-bucket-name is the presummed S3 bucket name
+# Commit the changes to the GitHub repository to trigger the workflow 
+# GitHub Actions will now automatically create infrastructure using Terraform
+# Github will also save the Terraform state file to the specified S3 bucket, 
+#Github will also perform a Terraform plan and apply when changes are pushed to the 'main' branch.
+
+
+#===================================================================================================
+#Yml Code for Github Action Flow
+#===================================================================================================
+name: Terraform CI/CD
+
+on:
+  push:
+    branches:
+      - main  # Adjust the branch as needed
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: 0.15.0  # Adjust the version as needed
+
+    - name: Configure AWS Credentials
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      env:
+        AWS_DEFAULT_REGION: us-east-1  # Adjust the region as needed
+
+    - name: Initialize Terraform
+      run: terraform init
+
+    - name: Terraform Plan
+      run: terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: terraform apply -input=false tfplan
+
+    - name: Save Terraform State
+      run: |
+        aws s3 cp terraform.tfstate s3://your-s3-bucket-name/terraform.tfstate
+      env:
+        AWS_DEFAULT_REGION: us-east-1  # Adjust the region as needed
+
